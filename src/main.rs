@@ -3,6 +3,7 @@ mod connect_four;
 use std::{
     fmt::Display,
     io::{self, Stdout, Write},
+    time::Duration,
 };
 
 use connect_four::{ConnectFour, Player};
@@ -71,14 +72,19 @@ impl Game {
 
     fn setup(&mut self) -> io::Result<()> {
         terminal::enable_raw_mode()?;
-        execute!(self.stdout, EnterAlternateScreen, Hide)?;
-        self.render()
+        execute!(self.stdout, EnterAlternateScreen, Hide)
     }
 
     fn game_loop(&mut self) -> io::Result<()> {
         while self.looping {
+            self.render()?;
+
+            if !event::poll(Duration::from_millis(50))? {
+                continue;
+            }
+
             if let Event::Key(event) = event::read()? {
-                self.handle_key_event(event)?;
+                self.handle_key_event(event);
             }
         }
 
@@ -154,33 +160,26 @@ impl Game {
         )
     }
 
-    fn handle_key_event(&mut self, event: KeyEvent) -> io::Result<()> {
+    fn handle_key_event(&mut self, event: KeyEvent) {
         match event.code {
             KeyCode::Esc => self.quit(),
-            KeyCode::Left => self.handle_left()?,
-            KeyCode::Right => self.handle_right()?,
-            KeyCode::Enter | KeyCode::Char(' ') => self.handle_play()?,
-            KeyCode::Char('r') => self.handle_restart()?,
+            KeyCode::Left => self.move_left(),
+            KeyCode::Right => self.move_right(),
+            KeyCode::Enter | KeyCode::Char(' ') => self.handle_play(),
+            KeyCode::Char('r') => self.handle_restart(),
             _ => {}
         }
-
-        Ok(())
     }
 
     fn quit(&mut self) {
         self.looping = false;
     }
 
-    fn handle_left(&mut self) -> io::Result<()> {
+    fn move_left(&mut self) {
         if self.game.over() {
-            return Ok(());
+            return;
         }
 
-        self.move_left();
-        self.render()
-    }
-
-    fn move_left(&mut self) {
         loop {
             if self.selected_column == 0 {
                 self.selected_column = self.game.last_column();
@@ -194,16 +193,11 @@ impl Game {
         }
     }
 
-    fn handle_right(&mut self) -> io::Result<()> {
+    fn move_right(&mut self) {
         if self.game.over() {
-            return Ok(());
+            return;
         }
 
-        self.move_right();
-        self.render()
-    }
-
-    fn move_right(&mut self) {
         loop {
             if self.selected_column == self.game.last_column() {
                 self.selected_column = 0;
@@ -217,23 +211,20 @@ impl Game {
         }
     }
 
-    fn handle_play(&mut self) -> io::Result<()> {
+    fn handle_play(&mut self) {
         if self.game.over() {
-            return Ok(());
+            return;
         }
 
         self.game.play(self.selected_column);
 
-        if !self.game.over() && self.game.is_column_full(self.selected_column) {
+        if self.game.is_column_full(self.selected_column) {
             self.move_right();
         }
-
-        self.render()
     }
 
-    fn handle_restart(&mut self) -> io::Result<()> {
+    fn handle_restart(&mut self) {
         self.game.reset();
         self.selected_column = 0;
-        self.render()
     }
 }
