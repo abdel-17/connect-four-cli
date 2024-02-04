@@ -115,81 +115,90 @@ impl ConnectFour {
         self.grid[index] = Some(self.player);
         self.coins[column] += 1;
 
-        self.match_row(row, column);
-        self.match_column(row, column);
-        self.match_diagonal(row, column);
-        self.match_alternate_diagonal(row, column);
+        if self.match_row(row, column)
+            || self.match_column(row, column)
+            || self.match_diagonal(row, column)
+            || self.match_alternate_diagonal(row, column)
+        {
+            self.winner = Some(self.player);
+        }
 
         self.turns += 1;
         self.player = self.player.opponent();
     }
 
-    fn match_indices(&mut self, indices: [usize; 4]) {
-        let [p1, p2, p3, p4] = indices.map(|i| self.grid[i]);
-        if p1.is_some() && p1 == p2 && p2 == p3 && p3 == p4 {
-            self.winner = Some(self.player);
-        }
+    fn match_players(
+        &self,
+        p1: Option<Player>,
+        p2: Option<Player>,
+        p3: Option<Player>,
+        p4: Option<Player>,
+    ) -> bool {
+        p1.is_some() && p1 == p2 && p2 == p3 && p3 == p4
     }
 
-    fn match_row(&mut self, row: usize, column: usize) {
+    fn match_row(&self, row: usize, column: usize) -> bool {
         let min_offset = 3 - column.min(3);
         let max_offset = (self.last_column() - column).min(3);
-        for offset in min_offset..=max_offset {
+
+        (min_offset..=max_offset).any(|offset| {
             let column = column + offset;
-            self.match_indices([
-                self.get_index(row, column),
-                self.get_index(row, column - 1),
-                self.get_index(row, column - 2),
-                self.get_index(row, column - 3),
-            ]);
-        }
+            self.match_players(
+                self.get(row, column),
+                self.get(row, column - 1),
+                self.get(row, column - 2),
+                self.get(row, column - 3),
+            )
+        })
     }
 
-    fn match_column(&mut self, row: usize, column: usize) {
+    fn match_column(&self, row: usize, column: usize) -> bool {
         let min_offset = 3 - row.min(3);
         let max_offset = (self.last_row() - row).min(3);
-        for offset in min_offset..=max_offset {
+
+        (min_offset..=max_offset).any(|offset| {
             let row = row + offset;
-            self.match_indices([
-                self.get_index(row, column),
-                self.get_index(row - 1, column),
-                self.get_index(row - 2, column),
-                self.get_index(row - 3, column),
-            ]);
-        }
+            self.match_players(
+                self.get(row, column),
+                self.get(row - 1, column),
+                self.get(row - 2, column),
+                self.get(row - 3, column),
+            )
+        })
     }
 
-    fn match_diagonal(&mut self, row: usize, column: usize) {
+    fn match_diagonal(&self, row: usize, column: usize) -> bool {
         let min_offset = 3 - row.min(column).min(3);
         let max_offset = (self.last_row() - row)
             .min(self.last_column() - column)
             .min(3);
 
-        for offset in min_offset..=max_offset {
+        (min_offset..=max_offset).any(|offset| {
             let row = row + offset;
             let column = column + offset;
-            self.match_indices([
-                self.get_index(row, column),
-                self.get_index(row - 1, column - 1),
-                self.get_index(row - 2, column - 2),
-                self.get_index(row - 3, column - 3),
-            ]);
-        }
+            self.match_players(
+                self.get(row, column),
+                self.get(row - 1, column - 1),
+                self.get(row - 2, column - 2),
+                self.get(row - 3, column - 3),
+            )
+        })
     }
 
-    fn match_alternate_diagonal(&mut self, row: usize, column: usize) {
+    fn match_alternate_diagonal(&self, row: usize, column: usize) -> bool {
         let min_offset = 3 - row.min(self.last_column() - column).min(3);
         let max_offset = (self.last_row() - row).min(column).min(3);
-        for offset in min_offset..=max_offset {
+
+        (min_offset..=max_offset).any(|offset| {
             let row = row + offset;
             let column = column - offset;
-            self.match_indices([
-                self.get_index(row, column),
-                self.get_index(row - 1, column + 1),
-                self.get_index(row - 2, column + 2),
-                self.get_index(row - 3, column + 3),
-            ]);
-        }
+            self.match_players(
+                self.get(row, column),
+                self.get(row - 1, column + 1),
+                self.get(row - 2, column + 2),
+                self.get(row - 3, column + 3),
+            )
+        })
     }
 
     pub fn reset(&mut self) {
