@@ -97,7 +97,7 @@ impl ConnectFour {
             row < self.rows() && column < self.columns(),
             "Position out of bounds: ({row}, {column})",
         );
-        return self.columns() * row + column;
+        self.columns() * row + column
     }
 
     /// Returns the player at the given position.
@@ -106,7 +106,9 @@ impl ConnectFour {
     }
 
     /// Plays the game at the given column.
-    pub fn play(&mut self, column: usize) {
+    ///
+    /// Returns the row the coin landed at.
+    pub fn play(&mut self, column: usize) -> usize {
         assert!(column < self.columns(), "Column out of bounds: {column}");
         assert!(!self.is_column_full(column), "Column is full: {column}");
 
@@ -125,9 +127,11 @@ impl ConnectFour {
 
         self.turns += 1;
         self.player = self.player.opponent();
+
+        row
     }
 
-    fn match_players(
+    fn match_cells(
         &self,
         p1: Option<Player>,
         p2: Option<Player>,
@@ -143,7 +147,7 @@ impl ConnectFour {
 
         (min_offset..=max_offset).any(|offset| {
             let column = column + offset;
-            self.match_players(
+            self.match_cells(
                 self.get(row, column),
                 self.get(row, column - 1),
                 self.get(row, column - 2),
@@ -158,7 +162,7 @@ impl ConnectFour {
 
         (min_offset..=max_offset).any(|offset| {
             let row = row + offset;
-            self.match_players(
+            self.match_cells(
                 self.get(row, column),
                 self.get(row - 1, column),
                 self.get(row - 2, column),
@@ -176,7 +180,7 @@ impl ConnectFour {
         (min_offset..=max_offset).any(|offset| {
             let row = row + offset;
             let column = column + offset;
-            self.match_players(
+            self.match_cells(
                 self.get(row, column),
                 self.get(row - 1, column - 1),
                 self.get(row - 2, column - 2),
@@ -192,7 +196,7 @@ impl ConnectFour {
         (min_offset..=max_offset).any(|offset| {
             let row = row + offset;
             let column = column - offset;
-            self.match_players(
+            self.match_cells(
                 self.get(row, column),
                 self.get(row - 1, column + 1),
                 self.get(row - 2, column + 2),

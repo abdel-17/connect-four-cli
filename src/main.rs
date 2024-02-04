@@ -2,8 +2,8 @@ mod connect_four;
 
 use std::{
     fmt::Display,
-    io::{self, Stdout, Write},
-    time::Duration,
+    io::{self, Write},
+    time::{Duration, Instant},
 };
 
 use connect_four::{ConnectFour, Player};
@@ -20,6 +20,7 @@ const SPACE: &str = " ";
 const ARROW: &str = "▼";
 const PLAYER: &str = "●";
 const SEPARATOR: &str = "|";
+const ANIMATION_DURATION: Duration = Duration::from_millis(150);
 
 impl Player {
     fn color(&self) -> Color {
@@ -50,8 +51,17 @@ fn main() -> io::Result<()> {
 struct Game {
     game: ConnectFour,
     selected_column: usize,
+    animation: Option<Animation>,
     looping: bool,
-    stdout: Stdout,
+    stdout: io::Stdout,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Animation {
+    current_row: usize,
+    target_row: usize,
+    column: usize,
+    start: Instant,
 }
 
 impl Game {
@@ -59,6 +69,7 @@ impl Game {
         Self {
             game: ConnectFour::new(),
             selected_column: 0,
+            animation: None,
             looping: true,
             stdout: io::stdout(),
         }
@@ -78,6 +89,7 @@ impl Game {
     fn game_loop(&mut self) -> io::Result<()> {
         while self.looping {
             self.render()?;
+            self.tick_animation();
 
             if !event::poll(Duration::from_millis(50))? {
                 continue;
@@ -105,10 +117,19 @@ impl Game {
             for column in 0..self.game.columns() {
                 write!(self.stdout, "{SEPARATOR}")?;
 
-                match self.game.get(row, column) {
-                    None => write!(self.stdout, "{SPACE}")?,
-                    Some(player) => self.render_player(player)?,
+                if let Some(animation) = self.animation {
+                    if animation.current_row == row && animation.column == column {
+                        self.render_cell(self.game.get(animation.target_row, column))?;
+                        continue;
+                    }
+
+                    if animation.target_row == row && animation.column == column {
+                        self.render_empty_cell()?;
+                        continue;
+                    }
                 }
+
+                self.render_cell(self.game.get(row, column))?;
             }
 
             write!(self.stdout, "{SEPARATOR}\r\n")?;
@@ -150,6 +171,17 @@ impl Game {
         write!(self.stdout, "{padding}{ARROW}\r\n")
     }
 
+    fn render_cell(&mut self, cell: Option<Player>) -> io::Result<()> {
+        match cell {
+            None => self.render_empty_cell(),
+            Some(player) => self.render_player(player),
+        }
+    }
+
+    fn render_empty_cell(&mut self) -> io::Result<()> {
+        write!(self.stdout, "{SPACE}")
+    }
+
     fn render_player(&mut self, player: Player) -> io::Result<()> {
         write!(
             self.stdout,
@@ -158,6 +190,20 @@ impl Game {
             PLAYER,
             ResetColor
         )
+    }
+
+    fn tick_animation(&mut self) {
+        if let Some(animation) = &mut self.animation {
+            if animation.current_row == animation.target_row {
+                self.animation = None;
+                return;
+            }
+
+            if animation.start.elapsed() >= ANIMATION_DURATION {
+                animation.current_row += 1;
+                animation.start = Instant::now();
+            }
+        }
     }
 
     fn handle_key_event(&mut self, event: KeyEvent) {
@@ -212,13 +258,23 @@ impl Game {
     }
 
     fn handle_play(&mut self) {
-        if self.game.over() {
+        if self.game.over() || self.animation.is_some() {
             return;
         }
 
-        self.game.play(self.selected_column);
+        let column = self.selected_column;
+        let row = self.game.play(column);
 
-        if self.game.is_column_full(self.selected_column) {
+        if row != 0 {
+            self.animation = Some(Animation {
+                current_row: 0,
+                target_row: row,
+                column,
+                start: Instant::now(),
+            });
+        }
+
+        if self.game.is_column_full(column) {
             self.move_right();
         }
     }
