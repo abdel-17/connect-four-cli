@@ -20,7 +20,7 @@ const SPACE: &str = " ";
 const ARROW: &str = "▼";
 const PLAYER: &str = "●";
 const SEPARATOR: &str = "|";
-const ANIMATION_DURATION: Duration = Duration::from_millis(150);
+const ANIMATION_DURATION: Duration = Duration::from_millis(100);
 
 impl Player {
     fn color(&self) -> Color {
